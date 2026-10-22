@@ -1,7 +1,7 @@
 {
-  "name": "xiegq20-local",
+  "name": "zcode-tps-bar",
   "version": 1,
-  "description": "本地插件市场：自研 ZCode 插件（TPS 吞吐悬浮条等）。",
+  "description": "ZCode 插件市场：TPS Bar —— 输入框下方的 TPS 吞吐条。",
   "plugins": [
     {
       "name": "zcode-tps-bar",
