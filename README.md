@@ -17,10 +17,31 @@
 
 ## 安装
 
-1. **装插件**：ZCode → 插件市场 → 添加 → 添加插件市场 → 粘贴本仓库根目录（或推到 GitHub 后填仓库地址）→ 个人 → TPS Bar → 安装。
-2. **注入条子**：完全退出 ZCode → 双击 `zcode-tps-bar/install-bar.cmd` → 重开 ZCode。
+**其他用户（推荐，从 GitHub 直接安装）**：
+
+1. ZCode → 插件市场 → 添加 → 添加插件市场 → 粘贴 `https://github.com/zsjy947/zcode-tps-bar`（或 `zsjy947/zcode-tps-bar`）。
+2. 个人 → TPS Bar → 安装。
+3. **完全退出 ZCode** → 找到已安装目录（`~/.zcode/cli/plugins/cache/<市场>/zcode-tps-bar/<版本>/`）双击 `install-bar.cmd` → 重开 ZCode，输入框正下方出现吞吐条。
+
+> 注入需要往 `app.asar` 追加一行加载器，而 asar 被运行中的客户端锁定，所以必须在 ZCode 完全退出时执行；ZCode 升级会覆盖 asar，条子消失时重跑一次 install 即可。
+
+**本机开发（从本地目录安装）**：
+
+1. 插件市场 → 添加 → 粘贴本仓库根目录的本地路径。
+2. 个人 → TPS Bar → 安装，然后同上执行 install-bar.cmd。
 
 > 卸载：`uninstall-bar.cmd` 剥离注入（asar 入口逐字节还原），再在 设置→插件 里移除。
+
+## 发布（维护者）
+
+GitHub 上新建**公开仓库** `zsjy947/zcode-tps-bar`（名字与 marketplace.json 的 name 对应），然后：
+
+```bash
+git remote add origin https://github.com/zsjy947/zcode-tps-bar.git
+git push -u origin main
+```
+
+仓库根的 `marketplace.json` 就是市场清单（name/version/description/plugins[].source 相对路径），零构建、零依赖，推送后他人即可按上面的步骤订阅安装；此后每次发版：改 `plugin.json` 版本号 → 同步 `marketplace.json` → commit → push，他人侧市场刷新即可看到更新。
 
 ## 特性
 

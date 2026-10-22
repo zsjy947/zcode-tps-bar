@@ -7,8 +7,10 @@
     "en": "TPS Bar: renderer-injected throughput bar below the composer (Tokmon-style mount). Four slots: rate + bottom-aligned spark bars / TTFT vs avg-peak / session total / today total. Rate colored by session-median baseline. Install: fully quit ZCode, then run install-bar.cmd."
   },
   "author": {
-    "name": "xiegq20"
+    "name": "zsjy947"
   },
+  "homepage": "https://github.com/zsjy947/zcode-tps-bar",
+  "repository": "https://github.com/zsjy947/zcode-tps-bar",
   "license": "MIT",
   "keywords": [
     "tps",
