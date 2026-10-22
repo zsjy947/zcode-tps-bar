@@ -1,0 +1,22 @@
+{
+  "name": "zcode-tps-bar",
+  "displayName": "TPS Bar",
+  "version": "0.3.0",
+  "description": "TPS Bar：注入式输入框下方吞吐条(Tokmon 同款挂点)。定稿四槽位：⚡速率+走势(矩形绘制,底线齐平) │ 首字↔均峰 │ 会话累计 │ 今日总量。速率按会话中位数着色(绿≥85%/黄≥50%/红)。安装：完全退出 ZCode 后运行 install-bar.cmd。钩子记录提问/收尾时刻驱动 生成中/空闲 切换。只读 usage 数据库。",
+  "description_i18n": {
+    "en": "TPS Bar: renderer-injected throughput bar below the composer (Tokmon-style mount). Four slots: rate + bottom-aligned spark bars / TTFT vs avg-peak / session total / today total. Rate colored by session-median baseline. Install: fully quit ZCode, then run install-bar.cmd."
+  },
+  "author": {
+    "name": "xiegq20"
+  },
+  "license": "MIT",
+  "keywords": [
+    "tps",
+    "tok/s",
+    "throughput",
+    "bar",
+    "overlay"
+  ],
+  "commands": "commands",
+  "hooks": "hooks/hooks.json"
+}

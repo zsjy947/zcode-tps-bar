@@ -1,0 +1,35 @@
+{
+  "description": "zcode-tps-bar: 记录提问时刻/收尾时刻 → 悬浮条据此区分 生成中/空闲。静默钩子,不注入任何上下文。",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "process",
+            "command": "node",
+            "args": [
+              "${ZCODE_PLUGIN_ROOT}/hooks/prompt-submit.mjs"
+            ],
+            "timeoutMs": 3000,
+            "statusMessage": "TPS Bar: 记录提问时刻…"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "process",
+            "command": "node",
+            "args": [
+              "${ZCODE_PLUGIN_ROOT}/hooks/stop.mjs"
+            ],
+            "timeoutMs": 3000,
+            "statusMessage": "TPS Bar: 记录收尾时刻…"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "xiegq20-local",
+  "version": 1,
+  "description": "本地插件市场：自研 ZCode 插件（TPS 吞吐悬浮条等）。",
+  "plugins": [
+    {
+      "name": "zcode-tps-bar",
+      "version": "0.3.0",
+      "description": "TPS Bar：注入式输入框下方吞吐条(Tokmon 同款挂点)。定稿四槽位：⚡速率+走势(矩形绘制,底线齐平) │ 首字↔均峰 │ 会话累计 │ 今日总量。速率按会话中位数着色(绿≥85%/黄≥50%/红)。安装：完全退出 ZCode 后运行 install-bar.cmd。钩子记录提问/收尾时刻驱动 生成中/空闲 切换。只读 usage 数据库。",
+      "source": "./zcode-tps-bar",
+      "displayName": "TPS Bar",
+      "displayName_i18n": {
+        "zh-CN": "TPS 吞吐悬浮条"
+      },
+      "description_i18n": {
+        "zh-CN": "注入式输入框下方 TPS 吞吐悬浮条"
+      }
+    }
+  ]
+}
