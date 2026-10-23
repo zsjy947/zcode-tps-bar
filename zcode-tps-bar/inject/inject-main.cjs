@@ -10,8 +10,26 @@
   "use strict";
   var electron;
   try { electron = require("electron"); } catch (e) { return; }
-  var app = electron.app, BrowserWindow = electron.BrowserWindow;
+  var app = electron.app, BrowserWindow = electron.BrowserWindow, ipcMain = electron.ipcMain;
   if (!app) return;
+
+  /* 每窗口活跃会话：客户端渲染端经自带 IPC 通道上报（CUA PiP 同款通道，只监听不注入）。
+   * 追加监听器不影响原有处理；值为 "" = 已同步但当前无会话。 */
+  var activeSid = new Map();    // webContents.id → 会话 id 或 ""
+  try {
+    ipcMain.on("zcode:sync-active-task-session", function (e, sid) {
+      if (!e || !e.sender || e.sender.isDestroyed()) return;
+      var s = typeof sid === "string" ? sid.trim() : "";
+      if (!(s.length <= 255 && /^[A-Za-z0-9_-]+$/.test(s))) s = "";
+      var prev = activeSid.get(e.sender.id);
+      activeSid.set(e.sender.id, s);
+      if (prev !== s) {
+        LOG("sid update wc=" + e.sender.id + " → " + (s || "(none)"));
+        try { poll(); } catch (err) { }   // 切换会话：立即按新会话拉取
+      }
+    });
+    LOG("ipc sid listener attached");
+  } catch (e) { LOG("ipc sid hook failed: " + e.message); }
 
   var fs = require("fs");
   var path = require("path");
@@ -93,35 +111,55 @@
     if (o == null) return "null";
     return JSON.stringify(o).replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
   }
-  function pushAll(p) {
-    var ws = BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : [];
-    for (var i = 0; i < ws.length; i++) {
-      var wc = ws[i].webContents;
-      if (!wc || wc.isDestroyed()) continue;
-      wc.executeJavaScript(
-        "window.__tpsbarUpdate && window.__tpsbarUpdate(" + safeJson(p) + ");", true
-      ).catch(function () {});
-    }
-  }
-
-  /* ---------- 轮询泵 ---------- */
-  var busy = false;
-  function poll() {
-    if (busy) return;
-    busy = true;
-    var req = http.get(API, function (res) {
+  /* ---------- 轮询泵：按各窗口上报的 sid 分别取数，窗口各自收到自己会话的快照 ---------- */
+  function fetchJson(url, cb) {
+    var req = http.get(url, function (res) {
       var buf = "";
       res.setEncoding("utf8");
       res.on("data", function (c) { buf += c; });
       res.on("end", function () {
-        busy = false;
-        var p;
-        try { p = JSON.parse(buf); } catch (e) { return; }
-        pushAll(p);
+        var p = null;
+        try { p = JSON.parse(buf); } catch (e) { }
+        cb(p);
       });
     });
-    req.on("error", function () { busy = false; });
-    req.setTimeout(1200, function () { req.destroy(); busy = false; });
+    req.on("error", function () { cb(null); });
+    req.setTimeout(1200, function () { req.destroy(); cb(null); });
+  }
+  function pushTo(wc, p) {
+    wc.executeJavaScript(
+      "window.__tpsbarUpdate && window.__tpsbarUpdate(" + safeJson(p) + ");", true
+    ).catch(function () { });
+  }
+  var busyJobs = 0;
+  function poll() {
+    if (busyJobs > 0) return;
+    var sids = [];
+    activeSid.forEach(function (v) {
+      if (v && sids.indexOf(v) < 0) sids.push(v);
+    });
+    sids = sids.slice(0, 8);   // 上限保护：同时活跃会话数再多也只取前 8
+    var jobs = [{ key: "", url: API }].concat(sids.map(function (s) {
+      return { key: s, url: API + "?sid=" + encodeURIComponent(s) };
+    }));
+    busyJobs = jobs.length;
+    var results = {};
+    jobs.forEach(function (j) {
+      fetchJson(j.url, function (p) {
+        if (p) results[j.key] = p;
+        busyJobs--;
+        if (busyJobs === 0) {
+          var ws = BrowserWindow.getAllWindows ? BrowserWindow.getAllWindows() : [];
+          for (var i = 0; i < ws.length; i++) {
+            var wc = ws[i].webContents;
+            if (!wc || wc.isDestroyed()) continue;
+            var sid = activeSid.get(wc.id) || "";
+            var p = results[sid] || results[""] || null;   // 无 sid 的窗口退回全局最近活跃
+            if (p) pushTo(wc, p);
+          }
+        }
+      });
+    });
   }
 
   function start() {

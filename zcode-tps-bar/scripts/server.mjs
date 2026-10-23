@@ -49,18 +49,46 @@ function readState() {
   }
 }
 
-function snapshot() {
+function snapshot(sidFilter) {
   const db = openDb();
   if (!db) return { ok: false, error: "usage 库不可读: " + DB_PATH };
   try {
-    const sidRow = db
-      .prepare(
-        "SELECT session_id, MAX(completed_at) AS last FROM model_usage" +
-        " WHERE status = 'completed' GROUP BY session_id ORDER BY last DESC LIMIT 1"
-      )
-      .get();
+    /* sidFilter 提供时按该会话取数（多窗口各自跟自己的会话）；否则取全局最近活跃会话 */
+    const hasFilter = !!(sidFilter && /^[A-Za-z0-9_-]{1,255}$/.test(sidFilter));
+    let sidRow;
+    if (hasFilter) {
+      sidRow = db
+        .prepare("SELECT session_id, MAX(completed_at) AS last FROM model_usage" +
+          " WHERE status = 'completed' AND session_id = ? GROUP BY session_id")
+        .get(sidFilter);
+    } else {
+      sidRow = db
+        .prepare("SELECT session_id, MAX(completed_at) AS last FROM model_usage" +
+          " WHERE status = 'completed' GROUP BY session_id ORDER BY last DESC LIMIT 1")
+        .get();
+    }
     const out = { ok: true, state: "idle", ts: Date.now() };
-    if (!sidRow) return out;
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const todayRow = db
+      .prepare(
+        "SELECT COALESCE(SUM(" + TOTAL_EXPR + "),0) AS t," +
+        " COALESCE(SUM(COALESCE(input_tokens,0)),0) AS i," +
+        " COALESCE(SUM(COALESCE(output_tokens,0)+COALESCE(reasoning_tokens,0)),0) AS o," +
+        " COALESCE(SUM(COALESCE(cache_read_input_tokens,0)),0) AS c," +
+        " COUNT(*) AS n" +
+        " FROM model_usage WHERE status = 'completed' AND completed_at >= ?"
+      )
+      .get(dayStart.getTime());
+    out.todayTokens = todayRow ? todayRow.t : 0;
+    out.todayStats = {
+      tokens: out.todayTokens,
+      input: todayRow ? todayRow.i : 0,
+      output: todayRow ? todayRow.o : 0,
+      cacheRead: todayRow ? todayRow.c : 0,
+      requests: todayRow ? todayRow.n : 0,
+    };
+    if (!sidRow) return out;   // 指定会话还没有完成请求：今日照常，会话槽位为空
     const sid = sidRow.session_id;
 
     const rows = db
@@ -118,26 +146,6 @@ function snapshot() {
       cacheRead: items.reduce((s, i) => s + i.cacheRead, 0),
       requests: items.length,
     };
-    const dayStart = new Date();
-    dayStart.setHours(0, 0, 0, 0);
-    const todayRow = db
-      .prepare(
-        "SELECT COALESCE(SUM(" + TOTAL_EXPR + "),0) AS t," +
-        " COALESCE(SUM(COALESCE(input_tokens,0)),0) AS i," +
-        " COALESCE(SUM(COALESCE(output_tokens,0)+COALESCE(reasoning_tokens,0)),0) AS o," +
-        " COALESCE(SUM(COALESCE(cache_read_input_tokens,0)),0) AS c," +
-        " COUNT(*) AS n" +
-        " FROM model_usage WHERE status = 'completed' AND completed_at >= ?"
-      )
-      .get(dayStart.getTime());
-    out.todayTokens = todayRow ? todayRow.t : 0;
-    out.todayStats = {
-      tokens: out.todayTokens,
-      input: todayRow ? todayRow.i : 0,
-      output: todayRow ? todayRow.o : 0,
-      cacheRead: todayRow ? todayRow.c : 0,
-      requests: todayRow ? todayRow.n : 0,
-    };
     return out;
   } finally {
     db.close();
@@ -160,7 +168,12 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (url.startsWith("/api/bar")) {
-    res.end(JSON.stringify(snapshot()));
+    let sid = "";
+    try {
+      const u = new URL(url, "http://127.0.0.1");
+      sid = u.searchParams.get("sid") || "";
+    } catch (e) { }
+    res.end(JSON.stringify(snapshot(sid)));
     return;
   }
   res.statusCode = 404;
